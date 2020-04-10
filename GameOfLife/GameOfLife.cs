@@ -20,10 +20,10 @@ namespace GameOfLife
         private const float maxZoomOut = 5 / 1; //pix / gridlen
         private const float maxZoomIn = 50 / 1; //pix / gridlen
 
-        private int boardWidth = 130;
-        private int boardHeight = 110;
+        private int boardWidth = 40;
+        private int boardHeight = 30;
         private Point gridOffsetPix = new Point(0,0);
-        private float gridScale = 25; //pix/gridlen
+        private float gridScale = 20; //pix/gridlen
         private Color gridLines = Color.Khaki;
         private Color gridBackground = Color.Gray;
         private Color activeSqr = Color.LightGoldenrodYellow;
@@ -35,7 +35,6 @@ namespace GameOfLife
         private int currentTick = 0;
 
         private bool playMode = false;
-        Thread playGame;
         private static System.Windows.Forms.Timer checkTimer;
 
         public GameOfLife()
@@ -43,19 +42,19 @@ namespace GameOfLife
             InitializeComponent();
             center = new Point(pctBx_Display.Width / 2, pctBx_Display.Height / 2);
             gameBoard = new bool[ticksStored, boardWidth, boardHeight];
+            checkTimer = new System.Windows.Forms.Timer();
+            checkTimer.Tick += new EventHandler(continueGame);
+
 
             updateDisplay();
         }
 
         private void updateDisplay()
         {
-            renderDisplayImage();
-        }
-
-        private void renderDisplayImage()
-        {
             int imgWidth = pctBx_Display.Width, imgHeight = pctBx_Display.Height;
 
+            if (pctBx_Display.Image != null)
+                pctBx_Display.Image.Dispose();
             pctBx_Display.Image = new Bitmap(imgWidth, imgHeight);
             Random rNum = new Random();
             Point gridPoint = new Point();
@@ -98,7 +97,6 @@ namespace GameOfLife
         {
             return (currentTick + 1) % ticksStored;
         }
-
         private void processBoard()
         {
             int nxtTck = nextTick();
@@ -109,10 +107,10 @@ namespace GameOfLife
 
                     int numActive = 0;
 
-                    if (y - 1 > 0)
+                    if (y - 1 >= 0)
                     {
                         numActive += (gameBoard[currentTick, x, y - 1]) ? 1 : 0;
-                        if (x - 1 > 0)
+                        if (x - 1 >= 0)
                             numActive += (gameBoard[currentTick, x - 1, y - 1]) ? 1 : 0;
                         if (x + 1 < boardWidth)
                             numActive += (gameBoard[currentTick, x + 1, y - 1]) ? 1 : 0;
@@ -120,12 +118,12 @@ namespace GameOfLife
                     if(y+1 < boardHeight)
                     {
                         numActive += (gameBoard[currentTick, x, y + 1]) ? 1 : 0;
-                        if (x - 1 > 0)
+                        if (x - 1 >= 0)
                             numActive += (gameBoard[currentTick, x - 1, y + 1]) ? 1 : 0;
                         if (x + 1 < boardWidth)
                             numActive += (gameBoard[currentTick, x + 1, y + 1]) ? 1 : 0;
                     }
-                    if (x - 1 > 0)
+                    if (x - 1 >= 0)
                         numActive += (gameBoard[currentTick, x - 1, y]) ? 1 : 0;
                     if (x + 1 < boardWidth)
                         numActive += (gameBoard[currentTick, x + 1, y]) ? 1 : 0;
@@ -341,39 +339,23 @@ namespace GameOfLife
                 playMode = false;
             }
         }
-
-        private void disableAlert()
-        {
-            if (checkTimer != null)
-            {
-                checkTimer.Stop();
-                checkTimer.Enabled = false;
-                checkTimer = null;
-            }
-        }
-
-
         private void setNextAlert()
         {
-            disableAlert();
-            checkTimer = new System.Windows.Forms.Timer();
+            processBoard();
+            updateDisplay();
 
-            checkTimer.Tick += new EventHandler(continueGame);
-            checkTimer.Interval = 10;
+            checkTimer.Interval = 1;
             checkTimer.Start();
         }
 
         private void continueGame(object source, EventArgs e)
         {
-            processBoard();
-            updateDisplay();
+            checkTimer.Stop();
 
             if (playMode)
             {
                 setNextAlert();
             }
-            else
-                disableAlert();
 
         }
 
