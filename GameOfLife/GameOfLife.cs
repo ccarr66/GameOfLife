@@ -20,10 +20,10 @@ namespace GameOfLife
         private const float maxZoomOut = 5 / 1; //pix / gridlen
         private const float maxZoomIn = 50 / 1; //pix / gridlen
 
-        private int boardWidth = 40;
-        private int boardHeight = 30;
+        private int boardWidth = 80;
+        private int boardHeight = 60;
         private Point gridOffsetPix = new Point(0,0);
-        private float gridScale = 20; //pix/gridlen
+        private float gridScale = 10; //pix/gridlen
         private Color gridLines = Color.Khaki;
         private Color gridBackground = Color.Gray;
         private Color activeSqr = Color.LightGoldenrodYellow;
@@ -37,6 +37,17 @@ namespace GameOfLife
         private bool playMode = false;
         private static System.Windows.Forms.Timer checkTimer;
 
+        private Bitmap backgroundImage;
+        private Point boardStartPixel;
+        private Point boardEndPixel;
+
+        private int workers = 32;
+
+        private readonly Point[] surroundingCells = {   new Point(-1, -1), new Point(0, -1), new Point(+1, -1),
+                                                        new Point(-1, 0),                    new Point(+1,  0),
+                                                        new Point(-1, +1), new Point(0, +1), new Point(+1, +1),
+        };
+
         public GameOfLife()
         {
             InitializeComponent();
@@ -45,18 +56,21 @@ namespace GameOfLife
             checkTimer = new System.Windows.Forms.Timer();
             checkTimer.Tick += new EventHandler(continueGame);
 
-
+            generateBackgroundImage();
             updateDisplay();
         }
-
-        private void updateDisplay()
+        private void generateBackgroundImage()
         {
             int imgWidth = pctBx_Display.Width, imgHeight = pctBx_Display.Height;
 
-            if (pctBx_Display.Image != null)
-                pctBx_Display.Image.Dispose();
-            pctBx_Display.Image = new Bitmap(imgWidth, imgHeight);
-            Random rNum = new Random();
+            backgroundImage = new Bitmap(imgWidth, imgHeight);
+            boardStartPixel = new Point(
+                (gridOffsetPix.X < 0) ? 0 : gridOffsetPix.X, 
+                (gridOffsetPix.Y < 0) ? 0 : gridOffsetPix.Y);
+            boardEndPixel = new Point(
+                (boardWidth * gridScale + gridOffsetPix.X < imgWidth) ? (int)(boardWidth * gridScale) + gridOffsetPix.X : imgWidth, 
+                (boardHeight * gridScale + gridOffsetPix.Y < imgHeight) ? (int)(boardHeight * gridScale) + gridOffsetPix.Y : imgHeight
+            );
             Point gridPoint = new Point();
             Point currentCell = new Point();
             for (int i = 0; i < imgWidth; i++)
@@ -67,28 +81,44 @@ namespace GameOfLife
                     gridPoint.Y = j - gridOffsetPix.Y;
                     currentCell.X = (gridPoint.X > 0) ? (int)(gridPoint.X / gridScale) : -1;
                     currentCell.Y = (gridPoint.Y > 0) ? (int)(gridPoint.Y / gridScale) : -1;
-                    if ((gridPoint.X == 0 && gridPoint.Y >=0 && gridPoint.Y <= boardHeight * gridScale) || (gridPoint.Y == 0 && gridPoint.X >= 0 && gridPoint.X <= boardWidth * gridScale)
-                        || (gridPoint.X == boardWidth*gridScale && gridPoint.Y <= boardHeight * gridScale && gridPoint.Y >= 0) || (gridPoint.Y == boardHeight * gridScale && gridPoint.X <= boardWidth * gridScale && gridPoint.X >= 0))
-                        ((Bitmap)pctBx_Display.Image).SetPixel(i, j, Color.Black);
+                    if ((gridPoint.X == 0 && gridPoint.Y >= 0 && gridPoint.Y <= boardHeight * gridScale) || (gridPoint.Y == 0 && gridPoint.X >= 0 && gridPoint.X <= boardWidth * gridScale)
+                        || (gridPoint.X == boardWidth * gridScale && gridPoint.Y <= boardHeight * gridScale && gridPoint.Y >= 0) || (gridPoint.Y == boardHeight * gridScale && gridPoint.X <= boardWidth * gridScale && gridPoint.X >= 0))
+                        backgroundImage.SetPixel(i, j, Color.Black);
                     else
                     {
                         if (gridPoint.X % gridScale == 0 || gridPoint.Y % gridScale == 0)
-                            ((Bitmap)pctBx_Display.Image).SetPixel(i, j, gridLines);
+                            backgroundImage.SetPixel(i, j, gridLines);
                         else
-                        {
-                            if (currentCell.X >= 0 && currentCell.Y >= 0 && currentCell.X < boardWidth && currentCell.Y < boardHeight && gameBoard[currentTick, currentCell.X, currentCell.Y])
-                                ((Bitmap)pctBx_Display.Image).SetPixel(i, j, activeSqr);
-                            else
-                                ((Bitmap)pctBx_Display.Image).SetPixel(i, j, gridBackground);
-                        }
+                            backgroundImage.SetPixel(i, j, gridBackground);
                     }
+
+                }
+            }
+
+        }
+        private void updateDisplay()
+        {
+            int imgWidth = pctBx_Display.Width, imgHeight = pctBx_Display.Height;
+
+            if (pctBx_Display.Image != null)
+                pctBx_Display.Image.Dispose();
+            pctBx_Display.Image = new Bitmap(backgroundImage);
+            Point currentCell = new Point();
+            for (int i = boardStartPixel.X; i < boardEndPixel.X; i++)
+            {
+                for (int j = boardStartPixel.Y; j < boardEndPixel.Y; j++)
+                {
+                    currentCell.X = ((i - gridOffsetPix.X) > 0) ? (int)((i - gridOffsetPix.X) / gridScale) : -1;
+                    currentCell.Y = ((j - gridOffsetPix.Y) > 0) ? (int)((j - gridOffsetPix.Y) / gridScale) : -1;
+
+                    if (currentCell.X >= 0 && currentCell.Y >= 0 && currentCell.X < boardWidth && currentCell.Y < boardHeight && gameBoard[currentTick, currentCell.X, currentCell.Y])
+                        ((Bitmap)pctBx_Display.Image).SetPixel(i, j, activeSqr);
 
                 }
             }
 
             pctBx_Display.Refresh();
         }
-
         private void incrementTick()
         {
             currentTick = (currentTick + 1) % ticksStored; 
@@ -100,48 +130,34 @@ namespace GameOfLife
         private void processBoard()
         {
             int nxtTck = nextTick();
-            for(int x = 0; x<boardWidth; x++)
-                for(int y = 0; y<boardHeight; y++)
-                {
-                    bool isActive = gameBoard[currentTick, x, y];
 
-                    int numActive = 0;
-
-                    if (y - 1 >= 0)
+            Parallel.For(0, workers, index =>
+            {
+                for (int x = boardWidth * (index) / workers; x < boardWidth * (index + 1) / workers; x++)
+                    for (int y = 0; y < boardHeight; y++)
                     {
-                        numActive += (gameBoard[currentTick, x, y - 1]) ? 1 : 0;
-                        if (x - 1 >= 0)
-                            numActive += (gameBoard[currentTick, x - 1, y - 1]) ? 1 : 0;
-                        if (x + 1 < boardWidth)
-                            numActive += (gameBoard[currentTick, x + 1, y - 1]) ? 1 : 0;
-                    }
-                    if(y+1 < boardHeight)
-                    {
-                        numActive += (gameBoard[currentTick, x, y + 1]) ? 1 : 0;
-                        if (x - 1 >= 0)
-                            numActive += (gameBoard[currentTick, x - 1, y + 1]) ? 1 : 0;
-                        if (x + 1 < boardWidth)
-                            numActive += (gameBoard[currentTick, x + 1, y + 1]) ? 1 : 0;
-                    }
-                    if (x - 1 >= 0)
-                        numActive += (gameBoard[currentTick, x - 1, y]) ? 1 : 0;
-                    if (x + 1 < boardWidth)
-                        numActive += (gameBoard[currentTick, x + 1, y]) ? 1 : 0;
+                        bool isActive = gameBoard[currentTick, x, y];
 
+                        int numActive = 0;
 
-                    if (isActive)
-                    {
-                        if (numActive > 3 || numActive < 2)
-                            gameBoard[nxtTck, x, y] = false;
-                        else
+                        foreach (Point p in surroundingCells)
+                            numActive += (gameBoard[currentTick, (boardWidth + x + p.X) % boardWidth, (boardHeight + y + p.Y) % boardHeight]) ? 1 : 0;
+
+                        if (isActive)
+                        {
+                            if (numActive > 3 || numActive < 2)
+                                gameBoard[nxtTck, x, y] = false;
+                            else
+                                gameBoard[nxtTck, x, y] = true;
+                        }
+                        else if (numActive == 3)
                             gameBoard[nxtTck, x, y] = true;
-                    }
-                    else if (numActive == 3)
-                        gameBoard[nxtTck, x, y] = true;
-                    else
-                        gameBoard[nxtTck, x, y] = false;
+                        else
+                            gameBoard[nxtTck, x, y] = false;
 
-                }
+                    }
+            });
+
             incrementTick();
         }
 
@@ -245,6 +261,8 @@ namespace GameOfLife
 
                 lastLocation = e.Location;
                 cellClickIntended = false;
+
+                generateBackgroundImage();
                 updateDisplay();
             }
         }
@@ -259,6 +277,7 @@ namespace GameOfLife
                     gameBoard[currentTick, currentCell.X, currentCell.Y] = !gameBoard[currentTick, currentCell.X, currentCell.Y];
 
             }
+            generateBackgroundImage();
             updateDisplay();
 
         }
@@ -279,8 +298,10 @@ namespace GameOfLife
             this.btn_Play.Location = new Point(110, this.Size.Height - 28);
             this.btn_ResetImage.Location = new Point(156, this.Size.Height - 28);
             this.btn_Rand.Location = new Point(182, this.Size.Height - 28);
+            this.btn_CoolPattern.Location = new Point(250, this.Size.Height - 28);
             this.btn_Settings.Location = new Point(this.Size.Width - 32, this.Size.Height - 28);
 
+            generateBackgroundImage();
             updateDisplay();
         }
         private void btn_maximize_Click(object sender, EventArgs e)
@@ -292,7 +313,6 @@ namespace GameOfLife
 
             GameOfLife_ResizeEnd(sender, e);
         }
-
         private void btn_ZoomOut_Click(object sender, EventArgs e)
         {
             if (gridScale >= maxZoomOut + zoomFactor)
@@ -305,9 +325,9 @@ namespace GameOfLife
                 gridScale = maxZoomOut;
 
 
+            generateBackgroundImage();
             updateDisplay();
         }
-
         private void btn_ZoomIn_Click(object sender, EventArgs e)
         {
             if (gridScale <= maxZoomIn - zoomFactor)
@@ -318,15 +338,15 @@ namespace GameOfLife
             }
             else
                 gridScale = maxZoomIn;
+
+            generateBackgroundImage();
             updateDisplay();
         }
-
         private void btn_Next_Click(object sender, EventArgs e)
         {
             processBoard();
             updateDisplay();
         }
-
         private void btn_Play_Click(object sender, EventArgs e)
         {
             if (!playMode)
@@ -347,7 +367,6 @@ namespace GameOfLife
             checkTimer.Interval = 1;
             checkTimer.Start();
         }
-
         private void continueGame(object source, EventArgs e)
         {
             checkTimer.Stop();
@@ -358,7 +377,6 @@ namespace GameOfLife
             }
 
         }
-
         private void btn_Rand_Click(object sender, EventArgs e)
         {
             Random rand = new Random();
@@ -369,7 +387,6 @@ namespace GameOfLife
                 }
             updateDisplay();
         }
-
         private void btn_ResetImage_Click(object sender, EventArgs e)
         {
             for (int x = 0; x < boardWidth; x++)
@@ -378,6 +395,37 @@ namespace GameOfLife
                     gameBoard[currentTick, x, y] = false;
                 }
             updateDisplay();
+        }
+        private void btn_CoolPattern_Click(object sender, EventArgs e)
+        {
+            for (int x = 0; x < boardWidth; x++)
+                for (int y = 0; y < boardHeight; y++)
+                {
+                    gameBoard[currentTick, x, y] = false;
+                }
+            int patternRadius = (int)(0.25 * Math.Min(boardHeight, boardWidth));
+            Point boardCenter = new Point(boardWidth / 2, boardHeight / 2);
+            Random randSrc = new Random();
+            int numPointsToGen = randSrc.Next(0, (int)(Math.Pow(patternRadius, 2)));
+            for(int i = 0; i < numPointsToGen; i++)
+            {
+                double angle = randSrc.NextDouble() * Math.PI / 2;
+                double radius = randSrc.Next(0, patternRadius);
+                gameBoard[currentTick,
+                            boardCenter.X + (int)(radius * Math.Cos(angle)),
+                            boardCenter.Y + (int)(radius * Math.Sin(angle))] = true;
+                gameBoard[currentTick,
+                            boardCenter.X - (int)(radius * Math.Cos(angle)),
+                            boardCenter.Y + (int)(radius * Math.Sin(angle))] = true;
+                gameBoard[currentTick,
+                            boardCenter.X + (int)(radius * Math.Cos(angle)),
+                            boardCenter.Y - (int)(radius * Math.Sin(angle))] = true;
+                gameBoard[currentTick,
+                            boardCenter.X - (int)(radius * Math.Cos(angle)),
+                            boardCenter.Y - (int)(radius * Math.Sin(angle))] = true;
+            }
+            updateDisplay();
+
         }
     }
 }

@@ -39,6 +39,7 @@
             this.btn_Play = new System.Windows.Forms.Button();
             this.btn_ResetImage = new System.Windows.Forms.Button();
             this.btn_Rand = new System.Windows.Forms.Button();
+            this.btn_CoolPattern = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.pctBx_Display)).BeginInit();
             this.SuspendLayout();
             // 
@@ -210,12 +211,27 @@
             this.btn_Rand.UseVisualStyleBackColor = true;
             this.btn_Rand.Click += new System.EventHandler(this.btn_Rand_Click);
             // 
+            // btn_CoolPattern
+            // 
+            this.btn_CoolPattern.FlatAppearance.BorderColor = System.Drawing.Color.Gray;
+            this.btn_CoolPattern.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btn_CoolPattern.ForeColor = System.Drawing.Color.Gray;
+            this.btn_CoolPattern.Location = new System.Drawing.Point(250, 632);
+            this.btn_CoolPattern.Name = "btn_CoolPattern";
+            this.btn_CoolPattern.Size = new System.Drawing.Size(62, 22);
+            this.btn_CoolPattern.TabIndex = 1;
+            this.btn_CoolPattern.TabStop = false;
+            this.btn_CoolPattern.Text = "Cool";
+            this.btn_CoolPattern.UseVisualStyleBackColor = true;
+            this.btn_CoolPattern.Click += new System.EventHandler(this.btn_CoolPattern_Click);
+            // 
             // GameOfLife
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.Black;
             this.ClientSize = new System.Drawing.Size(824, 660);
+            this.Controls.Add(this.btn_CoolPattern);
             this.Controls.Add(this.btn_Rand);
             this.Controls.Add(this.btn_ResetImage);
             this.Controls.Add(this.btn_Play);
@@ -250,6 +266,7 @@
         private System.Windows.Forms.Button btn_Play;
         private System.Windows.Forms.Button btn_ResetImage;
         private System.Windows.Forms.Button btn_Rand;
+        private System.Windows.Forms.Button btn_CoolPattern;
     }
 }
 
