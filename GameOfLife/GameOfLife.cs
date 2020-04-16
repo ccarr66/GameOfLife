@@ -292,13 +292,17 @@ namespace GameOfLife
             center = new Point((int)(pctBx_Display.Size.Width / 2), (int)(pctBx_Display.Size.Height / 2));
             this.btn_DragRegion.Size = new Size(this.Size.Width - 40, 20);
             this.btn_Maximize.Location = new Point(this.Size.Width - 40, 0);
+
             this.btn_ZoomOut.Location = new Point(12, this.Size.Height - 28);
             this.btn_ZoomIn.Location = new Point(38, this.Size.Height - 28);
-            this.btn_Next.Location = new Point(64, this.Size.Height - 28);
-            this.btn_Play.Location = new Point(110, this.Size.Height - 28);
-            this.btn_ResetImage.Location = new Point(156, this.Size.Height - 28);
-            this.btn_Rand.Location = new Point(182, this.Size.Height - 28);
-            this.btn_CoolPattern.Location = new Point(250, this.Size.Height - 28);
+
+            this.btn_Next.Location = new Point(88, this.Size.Height - 28);
+            this.btn_Play.Location = new Point(134, this.Size.Height - 27);
+
+            this.btn_Rand.Location = new Point(184, this.Size.Height - 28);
+            this.btn_CoolPattern.Location = new Point(252, this.Size.Height - 28);
+            this.btn_ResetImage.Location = new Point(320, this.Size.Height - 28);
+
             this.btn_Settings.Location = new Point(this.Size.Width - 32, this.Size.Height - 28);
 
             generateBackgroundImage();
@@ -352,11 +356,13 @@ namespace GameOfLife
             if (!playMode)
             {
                 playMode = true;
+                this.btn_Play.BackgroundImage = global::GameOfLife.Properties.Resources.Pause;
                 setNextAlert();
             }
             else
             {
                 playMode = false;
+                this.btn_Play.BackgroundImage = global::GameOfLife.Properties.Resources.Play_Button;
             }
         }
         private void setNextAlert()
@@ -403,7 +409,8 @@ namespace GameOfLife
                 {
                     gameBoard[currentTick, x, y] = false;
                 }
-            int patternRadius = (int)(0.25 * Math.Min(boardHeight, boardWidth));
+
+            int patternRadius = (int)(0.5 * Math.Min(boardHeight, boardWidth));
             Point boardCenter = new Point(boardWidth / 2, boardHeight / 2);
             Random randSrc = new Random();
             int numPointsToGen = randSrc.Next(0, (int)(Math.Pow(patternRadius, 2)));

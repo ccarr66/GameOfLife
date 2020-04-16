@@ -98,5 +98,14 @@
   <ItemGroup>
     <None Include="Resources\ZoomOut.png" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Play Button.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Pause.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="GameOfLife.exe" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
